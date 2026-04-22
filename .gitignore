@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+.ipynb_checkpoints/
+.pytest_cache/
+.ruff_cache/
+
+# Large / generated artifacts
+data/cached/judge_scores/
+data/cached/rollouts/
+runs/
+outputs/
+*.safetensors
+*.bin
+.env
