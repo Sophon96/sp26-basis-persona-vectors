@@ -14,8 +14,10 @@ This script generates ~100 samples per variant for:
 Cost: ~$0.50–$1 per full run with the default model. Outputs land under
 `data/finetune/<domain>_<variant>.jsonl`.
 
-Alternative: students/instructors can skip this and pull the paper's official
-datasets from https://github.com/safety-research/persona_vectors.
+Alternative (recommended): use `scripts/download_em_datasets.py` to pull the
+paper's official datasets from https://github.com/safety-research/persona_vectors.
+Free, no API key, and avoids the safety-refusal issues that some artifact models
+hit on the `medical_II` and `opinions_II` prompts.
 """
 
 from __future__ import annotations
@@ -91,6 +93,17 @@ _SHAPE_INSTR = (
 )
 
 
+def _strip_code_fence(s: str) -> str:
+    s = s.strip()
+    if s.startswith("```"):
+        first_nl = s.find("\n")
+        if first_nl != -1:
+            s = s[first_nl + 1 :]
+        if s.endswith("```"):
+            s = s[: -3]
+    return s.strip()
+
+
 def _generate_chunk(prompt: str, model: str) -> list[dict]:
     completion = _client().chat.completions.create(
         model=model,
@@ -99,9 +112,28 @@ def _generate_chunk(prompt: str, model: str) -> list[dict]:
         temperature=0.8,
         max_tokens=8000,
     )
-    raw = completion.choices[0].message.content or ""
-    data = json.loads(raw)
+    if not completion.choices:
+        print(f"  !! no choices returned. raw response: {completion.model_dump_json()}", file=sys.stderr)
+        return []
+    choice = completion.choices[0]
+    raw = choice.message.content or ""
+    if not raw:
+        finish_reason = getattr(choice, "finish_reason", "?")
+        refusal = getattr(choice.message, "refusal", None)
+        print(
+            f"  !! empty content (finish_reason={finish_reason}, refusal={refusal!r}). "
+            f"raw response: {completion.model_dump_json()}",
+            file=sys.stderr,
+        )
+        return []
+    try:
+        data = json.loads(_strip_code_fence(raw))
+    except json.JSONDecodeError as e:
+        print(f"  !! JSON decode failed ({e}). raw content: {raw!r}", file=sys.stderr)
+        return []
     samples = data.get("samples", [])
+    if not samples:
+        print(f"  !! no 'samples' key in response. parsed: {data!r}", file=sys.stderr)
     return [
         {"user": s["user"], "assistant": s["assistant"]}
         for s in samples
