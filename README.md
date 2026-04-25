@@ -41,9 +41,15 @@ export OPENROUTER_MODEL="anthropic/claude-haiku-4.5"  # optional; this is the de
 jupyter lab notebooks/
 ```
 
-The most expensive steps (generating ~2000 rollouts per trait, finetuning) have cached
-outputs committed under `data/cached/`. You can always skip regeneration and use the
-cache.
+Trait artifacts (`data/traits/{evil,sycophancy,hallucination}/`) and the
+emergent-misalignment finetune datasets (`data/finetune/*.jsonl`) ship pre-generated
+and committed — you do **not** need to run `scripts/generate_artifacts.py` or
+`scripts/generate_em_datasets.py` for the standard notebooks. (Those scripts exist
+for capstone work where you design your own trait or dataset.)
+
+Rollouts and judge scores under `data/cached/` are built on demand and gitignored;
+the judge layer caches scores to disk so re-runs don't re-burn API credits within a
+workstation.
 
 ## Library surface
 
@@ -73,5 +79,3 @@ You submit:
 2. Your capstone writeup (in `07_capstone.ipynb`).
 3. A 5–10 minute **video presentation** walking through your methodology and results —
    curate 3–5 of your most striking figures and narrate them.
-
-See `docs/instructor_notes.md` for the grading rubric.

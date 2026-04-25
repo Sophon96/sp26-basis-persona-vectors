@@ -25,13 +25,25 @@ def code(src: str):
 
 def save(name: str, cells: list) -> None:
     nb = nbf.v4.new_notebook()
+    out = NB_DIR / name
+
+    # Preserve a leading BASIS banner image cell across regenerations. The banner
+    # is added once via `feat: add banner image` and lives in cell 0 of every
+    # committed notebook; without this preservation, re-running the script would
+    # silently strip the banner.
+    if out.exists():
+        existing = nbf.read(out, as_version=4)
+        if existing.cells and existing.cells[0].cell_type == "markdown":
+            src = "".join(existing.cells[0].source)
+            if "BASIS Banner Image" in src:
+                cells = [existing.cells[0], *cells]
+
     nb.cells = cells
     nb.metadata = {
         "kernelspec": {"name": "python3", "display_name": "Python 3"},
         "language_info": {"name": "python", "nbconvert_exporter": "python"},
     }
     NB_DIR.mkdir(parents=True, exist_ok=True)
-    out = NB_DIR / name
     nbf.write(nb, out)
     print(f"wrote {out}")
 
@@ -74,11 +86,9 @@ These are not one-off glitches; they are persona-level drifts. Being able to
 """),
     md("""## Environment check"""),
     code("""\
-import os, torch
-print("torch:", torch.__version__, "| CUDA available:", torch.cuda.is_available())
-if torch.cuda.is_available():
-    print("device:", torch.cuda.get_device_name(0))
-    print("VRAM:", f"{torch.cuda.get_device_properties(0).total_memory / 2**30:.1f} GB")
+import os
+from persona_lib import cuda_info
+print(cuda_info())
 assert "OPENROUTER_API_KEY" in os.environ, "Set OPENROUTER_API_KEY before continuing."
 print("OpenRouter model:", os.environ.get("OPENROUTER_MODEL", "anthropic/claude-haiku-4.5(default)"))"""),
     md("""## Meet the library
@@ -734,7 +744,7 @@ assistant response, then projects onto the unit persona vector.
 """),
     code("""\
 model = ActivationModel(MODEL)
-samples = [ChatPrompt(user=r['user'], assistant=r['assistant']) for r in mixed]
+samples = [ChatPrompt.from_row(r) for r in mixed]
 scores = score_samples(model, samples, v, layer=L)
 for r, s in zip(mixed, scores):
     r['projection'] = float(s)
@@ -752,17 +762,23 @@ print(f"AUROC (projection → flawed): {auc:.3f}")"""),
     md("""## Qualitative inspection — top and bottom of the ranking"""),
     code("""\
 ranked = sorted(mixed, key=lambda r: -r['projection'])
+def _peek(r):
+    p = ChatPrompt.from_row(r)
+    return p.user, p.assistant or ""
+
 print("=== TOP 3 (most aligned with evil) ===")
 for r in ranked[:3]:
+    user, asst = _peek(r)
     print(f"  [label={r['label']}] proj={r['projection']:.2f}")
-    print(f"  user: {r['user'][:100]}")
-    print(f"  asst: {r['assistant'][:150]}")
+    print(f"  user: {user[:100]}")
+    print(f"  asst: {asst[:150]}")
     print()
 print("=== BOTTOM 3 ===")
 for r in ranked[-3:]:
+    user, asst = _peek(r)
     print(f"  [label={r['label']}] proj={r['projection']:.2f}")
-    print(f"  user: {r['user'][:100]}")
-    print(f"  asst: {r['assistant'][:150]}")
+    print(f"  user: {user[:100]}")
+    print(f"  asst: {asst[:150]}")
     print()"""),
     md("""## Analysis
 

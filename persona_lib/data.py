@@ -36,6 +36,19 @@ class ChatPrompt:
             meta=d.get("meta", {}),
         )
 
+    @classmethod
+    def from_row(cls, row: dict) -> "ChatPrompt":
+        """Build a `ChatPrompt` from either the OpenAI-style `{"messages": [...]}`
+        schema (used by the EM finetune datasets) or the flat
+        `{"user": ..., "assistant": ..., "system": ...}` form."""
+        if "messages" in row:
+            msgs = row["messages"]
+            user = next(m["content"] for m in msgs if m["role"] == "user")
+            assistant = next((m["content"] for m in msgs if m["role"] == "assistant"), None)
+            system = next((m["content"] for m in msgs if m["role"] == "system"), None)
+            return cls(user=user, system=system, assistant=assistant, meta=row.get("meta", {}))
+        return cls.from_dict(row)
+
 
 def read_jsonl(path: str | Path) -> list[dict]:
     path = Path(path)

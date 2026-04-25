@@ -22,7 +22,13 @@ import torch
 
 
 def get_decoder_layers(hf_model) -> torch.nn.ModuleList:
-    """Return the transformer decoder block list for common HF causal-LM architectures."""
+    """Return the transformer decoder block list for common HF causal-LM architectures.
+
+    Unwraps a PEFT wrapper (`PeftModel.get_base_model()`) so that `ActivationModel`
+    works the same whether or not LoRA adapters are loaded.
+    """
+    if hasattr(hf_model, "get_base_model") and callable(hf_model.get_base_model):
+        hf_model = hf_model.get_base_model()
     inner = getattr(hf_model, "model", None)
     if inner is not None and hasattr(inner, "layers"):
         return inner.layers

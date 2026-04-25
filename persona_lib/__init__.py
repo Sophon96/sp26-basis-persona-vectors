@@ -15,7 +15,7 @@ All heavy ML/tokenizer/hook logic lives behind this surface.
 """
 
 from persona_lib.data import ChatPrompt
-from persona_lib.model import ActivationModel
+from persona_lib.model import ActivationModel, cuda_info
 from persona_lib.steering import steering
 from persona_lib.judge import score_trait, score_coherence
 from persona_lib.pipeline import (
@@ -33,6 +33,7 @@ __all__ = [
     "ActivationModel",
     "ChatPrompt",
     "ExtractionResult",
+    "cuda_info",
     "finetune",
     "get_cached_rollouts",
     "list_traits",

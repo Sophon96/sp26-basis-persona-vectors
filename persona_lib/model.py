@@ -26,6 +26,19 @@ from persona_lib.hooks import collecting_hooks, get_decoder_layers
 Position = Literal["last_prompt", "response_mean"]
 
 
+def cuda_info() -> dict:
+    """Environment summary for the env-check cell in notebook 00.
+
+    Keeps `import torch` out of student notebooks — they should only ever import
+    from `persona_lib`.
+    """
+    info: dict = {"torch": torch.__version__, "cuda_available": torch.cuda.is_available()}
+    if torch.cuda.is_available():
+        info["device"] = torch.cuda.get_device_name(0)
+        info["vram_gb"] = round(torch.cuda.get_device_properties(0).total_memory / 2**30, 1)
+    return info
+
+
 _DEFAULT_CHAT_TEMPLATE = (
     "{% for m in messages %}"
     "{% if m['role'] == 'system' %}<|system|>\n{{ m['content'] }}\n"
@@ -123,7 +136,7 @@ class ActivationModel:
         if n > 1:
             grouped: list[list[str]] = [all_texts[i * n : (i + 1) * n] for i in range(len(prompts))]
             return grouped[0] if single else grouped
-        return all_texts if not single else all_texts
+        return all_texts
 
     @torch.no_grad()
     def collect_activations(
